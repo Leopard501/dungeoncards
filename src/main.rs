@@ -337,7 +337,7 @@ impl Game {
                     print!("\n");
                 }
 
-                println!("{}", TextType::Command.stylize("Commands: use [card], flee, quit"));
+                println!("{}", TextType::Command.stylize("Commands: use [card 1-4], flee, quit"));
             }
             GameState::Lost => {
                 println!("{}", TextType::Lost.stylize("===== Game over ====="));
@@ -355,7 +355,7 @@ impl Game {
                     print!("\n");
                 }
                 
-                println!("{}", TextType::Command.stylize("Commands: buy [card], continue, quit"));
+                println!("{}", TextType::Command.stylize("Commands: buy [card 1-4], continue, quit"));
             }
             GameState::Won => {
                 println!("{}", TextType::Won.stylize("===== You win! ====="));
