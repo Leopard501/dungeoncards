@@ -151,6 +151,29 @@ impl Card {
             }
         }
     }
+
+    fn upgrade(&self, amount: u8) -> Card {
+        match &self.card_type {
+            CardType::Regular { suit, rank } => {
+                let new_value = *rank as u8 + amount;
+                return Card {
+                    card_type: CardType::Regular { suit: *suit, rank: match new_value {
+                        1 => Rank::Ace,
+                        2 => Rank::Two,
+                        3 => Rank::Three,
+                        4 => Rank::Four,
+                        5 => Rank::Five,
+                        6 => Rank::Six,
+                        7 => Rank::Seven,
+                        8 => Rank::Eight,
+                        9 => Rank::Nine,
+                        _ => Rank::Ten,
+                    } }
+                }
+            },
+            CardType::Joker { .. } => return self.clone(),
+        }
+    }
 }
 
 impl Ord for Card {
@@ -186,7 +209,7 @@ struct Game {
     shop_discard: Vec<Card>,
     health: u8,
     money: u32,
-    weapon_damage: u8,
+    weapon: Option<Card>,
     weapon_durability: u8,
     fled: bool,
     state: GameState,
@@ -241,7 +264,7 @@ impl Game {
             shop_discard: vec![],
             health: 12, 
             money: 5, 
-            weapon_damage: 0,
+            weapon: None,
             weapon_durability: u8::MAX, 
             fled: false, 
             state: GameState::Floor,
@@ -250,7 +273,7 @@ impl Game {
 
     fn start_floor(&mut self) {
         self.health = 12;
-        self.weapon_damage = 0;
+        self.weapon = None;
         self.weapon_durability = u8::MAX;
 
         self.dungeon.append(&mut self.room);
@@ -332,12 +355,15 @@ impl Game {
                     print!(" {}", card.display());
                 }
                 print!("\n");
-                if self.weapon_damage > 0 {
-                    print!("Weapon: {}", TextType::Diamonds.stylize(format!("{}♦", self.weapon_damage).as_str()));
-                    if self.weapon_durability < u8::MAX {
-                        print!(" ({} durability)", self.weapon_durability);
+                match &self.weapon {
+                    Some(weapon) => {
+                        print!("Weapon: {}", weapon.display());
+                        if self.weapon_durability < u8::MAX {
+                            print!(" ({} durability)", self.weapon_durability);
+                        }
+                        print!("\n");
                     }
-                    print!("\n");
+                    None => { }
                 }
 
                 println!("{}", TextType::Command.stylize("Commands: use [card 1-4], flee, quit"));
@@ -409,27 +435,35 @@ impl Game {
             }
             CardType::Regular { suit, rank } => match suit {
                 Suit::Clubs | Suit::Spades => {
-                    if self.weapon_damage > 0 && self.weapon_durability > rank as u8 {
-                        println!("Fought {} using {}", 
-                            self.room[room_idx-1].display(), 
-                            TextType::Diamonds.stylize(format!("{}♦", self.weapon_damage).as_str()));
-                        let d: i16 = rank as i16 - self.weapon_damage as i16;
-                        if d < 0 {
-                            self.money += d.abs() as u32;
-                            print!("{}\n", TextType::Money.stylize(format!("+${}", d.abs() as u32).as_str()));
-                        } else if d > 0 {
-                            self.health = cmp::max(self.health as i16 - d as i16, 0) as u8;
-                            print!("{}", TextType::Bad.stylize(format!("-{} HP\n", d as u8).as_str()));
+                    let mut barehanded = false;
+                    match &self.weapon {
+                        Some(weapon) => {
+                            if self.weapon_durability > rank as u8 {
+                                println!("Fought {} using {}", 
+                                    self.room[room_idx-1].display(), 
+                                    weapon.display());
+                                let d: i16 = rank as i16 - weapon.get_value() as i16;
+                                if d < 0 {
+                                    self.money += d.abs() as u32;
+                                    print!("{}\n", TextType::Money.stylize(format!("+${}", d.abs() as u32).as_str()));
+                                } else if d > 0 {
+                                    self.health = cmp::max(self.health as i16 - d as i16, 0) as u8;
+                                    print!("{}", TextType::Bad.stylize(format!("-{} HP\n", d as u8).as_str()));
+                                }
+                                self.weapon_durability = rank as u8;
+                            } else {
+                                println!("{} {}", 
+                                    weapon.display(),
+                                    TextType::Bad.stylize("broke!"));
+                                self.weapon = None;
+                                barehanded = true;
+                            }
+                        },
+                        None => { 
+                            barehanded = true; 
                         }
-                        self.weapon_durability = rank as u8;
-                    } else {
-                        // durability too low
-                        if self.weapon_damage > 0 {
-                            println!("{} {}", 
-                                TextType::Diamonds.stylize(format!("{}♦", self.weapon_damage).as_str()),
-                                TextType::Bad.stylize("broke!"));
-                            self.weapon_damage = 0;
-                        }
+                    }
+                    if barehanded {
                         println!("Fought {} barehanded", self.room[room_idx-1].display());
                         self.health = cmp::max(self.health as i16 - rank as i16, 0) as u8;
                         print!("{}", TextType::Bad.stylize(format!("-{} HP\n", rank as u8).as_str()));
@@ -447,17 +481,25 @@ impl Game {
                 },
                 Suit::Diamonds => {
                     if rank < Rank::Jack {
-                        self.weapon_damage = rank as u8;
+                        self.weapon = Some(self.room[room_idx-1].clone());
                         self.weapon_durability = u8::MAX;
                         println!("Equipped {}", self.room[room_idx-1].display())
                     } else {
-                        let repair = (rank as u8 - Rank::Ten as u8) * 2;
-                        let upgrade = rank as u8 - Rank::Ten as u8;
-                        if self.weapon_durability < u8::MAX {
-                            self.weapon_durability += repair;
+                        match &self.weapon {
+                            Some(weapon) => {
+                                let repair = (rank as u8 - Rank::Ten as u8) * 2;
+                                let upgrade = rank as u8 - Rank::Ten as u8;
+                                if self.weapon_durability < u8::MAX {
+                                    self.weapon_durability += repair;
+                                }
+                                self.weapon = Some(weapon.upgrade(upgrade));
+                                println!("{}", TextType::Good.stylize(format!("Repaired {} durability, upgraded weapon", repair).as_str()));
+                            },
+                            None => {
+                                println!("{}", TextType::Bad.stylize("No weapon equiped!"))
+                            }
                         }
-                        self.weapon_damage += upgrade;
-                        println!("{}", TextType::Good.stylize(format!("Repaired {} durability, +{} damage", repair, upgrade).as_str()));
+                        
                     }
                 }
             }
