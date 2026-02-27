@@ -452,10 +452,12 @@ impl Game {
                         println!("Equipped {}", self.room[room_idx-1].display())
                     } else {
                         let repair = (rank as u8 - Rank::Ten as u8) * 2;
+                        let upgrade = rank as u8 - Rank::Ten as u8;
                         if self.weapon_durability < u8::MAX {
                             self.weapon_durability += repair;
                         }
-                        println!("{}", TextType::Good.stylize(format!("Repaired {} durability", repair).as_str()));
+                        self.weapon_damage += upgrade;
+                        println!("{}", TextType::Good.stylize(format!("Repaired {} durability, +{} damage", repair, upgrade).as_str()));
                     }
                 }
             }
