@@ -135,18 +135,71 @@ impl Card {
         };
 
         match self.card_type {
-            CardType::Regular { suit, .. } => {
+            CardType::Regular { suit, rank } => {
                 match suit {
-                    Suit::Hearts => TextType::Hearts.stylize(&text),
-                    Suit::Diamonds => TextType::Diamonds.stylize(&text),
-                    Suit::Clubs => TextType::Clubs.stylize(&text),
-                    Suit::Spades => TextType::Spades.stylize(&text),
+                    Suit::Hearts => TextType::Hearts.stylize(
+                        &format!("{} ({})", match rank {
+                            Rank::Four => "Drop",
+                            Rank::Five => "Vial",
+                            Rank::Six => "Cup",
+                            Rank::Seven => "Bottle",
+                            Rank::Eight => "Flask",
+                            Rank::Nine => "Goblet",
+                            Rank::Jack => "Glittering Dew",
+                            Rank::Queen => "Golden Apple",
+                            Rank::King => "Ambrosia",
+                            _ => "",
+                        }, text)
+                    ),
+                    Suit::Diamonds => TextType::Diamonds.stylize(
+                        &format!("{} ({})", match rank {
+                            Rank::Four => "Stick",
+                            Rank::Five => "Club",
+                            Rank::Six => "Dagger",
+                            Rank::Seven => "Shortsword",
+                            Rank::Eight => "Broadsword",
+                            Rank::Nine => "Greatsword",
+                            Rank::Ten => "Enchanted Blade",
+                            Rank::Jack => "Bronze Anvil",
+                            Rank::Queen => "Sterling Anvil",
+                            Rank::King => "Cobalt Anvil",
+                            _ => "",
+                        }, text)
+                    ),
+                    Suit::Clubs => TextType::Clubs.stylize(
+                        &format!("{} ({})", match rank {
+                            Rank::Four => "Rat",
+                            Rank::Five => "Slime",
+                            Rank::Six => "Goblin",
+                            Rank::Seven => "Spider",
+                            Rank::Eight => "Rat King",
+                            Rank::Nine => "Ogre",
+                            Rank::Jack => "Giant",
+                            Rank::Queen => "Goblin Chief",
+                            Rank::King => "Demon",
+                            _ => "",
+                        }, text)
+                    ),
+                    Suit::Spades => TextType::Spades.stylize(
+                        &format!("{} ({})", match rank {
+                            Rank::Four => "Maggot",
+                            Rank::Five => "Cursed Skull",
+                            Rank::Six => "Skeleton",
+                            Rank::Seven => "Zombie",
+                            Rank::Eight => "Undead Squire",
+                            Rank::Nine => "Undead Knight",
+                            Rank::Jack => "Bone King",
+                            Rank::Queen => "Amalgamation",
+                            Rank::King => "Lich",
+                            _ => "",
+                        }, text)
+                    ),
                 }
             }
             CardType::Joker { color } => {
                 match color {
-                    JokerColor::Black => TextType::BlackJoker.stylize(&text),
-                    JokerColor::Red => TextType::RedJoker.stylize(&text),
+                    JokerColor::Black => TextType::BlackJoker.stylize("Ice Spell (Jo)"),
+                    JokerColor::Red => TextType::RedJoker.stylize("Fire Spell (Jo)"),
                 }
             }
         }
@@ -341,6 +394,7 @@ impl Game {
             GameState::Floor => {
                 println!("{}", TextType::Dungeon.stylize("===== Dungeon ====="));
                 println!("{} card(s) left in Dungeon", self.dungeon.len());
+
                 let health_text = format!("{}/12 HP", self.health);
                 let health_color = match self.health {
                     0..=4 => TextType::Bad,
@@ -350,11 +404,11 @@ impl Game {
                 };
                 let money_text = format!("${}", self.money);
                 println!("{}, {}", health_color.stylize(health_text.as_str()), TextType::Money.stylize(money_text.as_str()));
-                print!("Room:");
-                for card in &self.room {
-                    print!(" {}", card.display());
+
+                for i in 0..self.room.len() {
+                    println!("{}. {}", i+1, self.room[i].display());
                 }
-                print!("\n");
+
                 match &self.weapon {
                     Some(weapon) => {
                         print!("Weapon: {}", weapon.display());
@@ -366,7 +420,7 @@ impl Game {
                     None => { }
                 }
 
-                println!("{}", TextType::Command.stylize("Commands: use [card 1-4], flee, quit"));
+                println!("{}", TextType::Command.stylize("Commands: use [1-4], flee, quit"));
             }
             GameState::Lost => {
                 println!("{}", TextType::Lost.stylize("===== Game over ====="));
@@ -376,12 +430,10 @@ impl Game {
                 println!("{}", TextType::Shop.stylize("===== Shop ====="));
                 println!("{}", TextType::Money.stylize(format!("${}", self.money).as_str()));
                 if !self.shop_stock.is_empty() {
-                    print!("On sale:");
                     for i in 0..cmp::min(self.shop_stock.len(), 4) {
                         let card = &self.shop_stock[i];
-                        print!(" {}-{}", card.display(), TextType::Money.stylize(format!("${}", card.get_value()).as_str()));
+                        println!("{}. {} - {}", i+1, card.display(), TextType::Money.stylize(format!("${}", card.get_value()).as_str()));
                     }
-                    print!("\n");
                 }
                 
                 println!("{}", TextType::Command.stylize("Commands: buy [card 1-4], continue, quit"));
@@ -472,10 +524,12 @@ impl Game {
                 Suit::Hearts => {
                     if rank < Rank::Jack {
                         self.health = cmp::min(self.health + rank as u8, cmp::max(12, self.health));
+                        println!("Imbibed {}", self.room[room_idx-1].display());
                         println!("{}", TextType::Good.stylize(format!("+{} HP", rank as u8).as_str()));
                     } else {
                         let absorption = (rank as u8 - Rank::Ten as u8) * 2;
                         self.health = 12 + absorption;
+                        println!("Imbibed {}", self.room[room_idx-1].display());
                         println!("{}", TextType::Good.stylize(format!("Full heal + {} HP", absorption).as_str()));
                     }
                 },
@@ -641,7 +695,7 @@ fn main() {
         }
 
         // wait
-        print!("...");
+        print!("{}", TextType::Command.stylize("[Press enter]"));
         io::Write::flush(&mut io::stdout()).unwrap();
         io::stdin().read_line(&mut input).unwrap();
     }
