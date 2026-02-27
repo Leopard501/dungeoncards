@@ -410,14 +410,14 @@ impl Game {
             CardType::Regular { suit, rank } => match suit {
                 Suit::Clubs | Suit::Spades => {
                     if self.weapon_damage > 0 && self.weapon_durability > rank as u8 {
-                        print!("Fought {} using {}, ", 
+                        println!("Fought {} using {}", 
                             self.room[room_idx-1].display(), 
                             TextType::Diamonds.stylize(format!("{}♦", self.weapon_damage).as_str()));
                         let d: i16 = rank as i16 - self.weapon_damage as i16;
                         if d < 0 {
                             self.money += d.abs() as u32;
                             print!("{}\n", TextType::Money.stylize(format!("+${}", d.abs() as u32).as_str()));
-                        } else {
+                        } else if d > 0 {
                             self.health = cmp::max(self.health as i16 - d as i16, 0) as u8;
                             print!("{}", TextType::Bad.stylize(format!("-{} HP\n", d as u8).as_str()));
                         }
@@ -430,7 +430,7 @@ impl Game {
                                 TextType::Bad.stylize("broke!"));
                             self.weapon_damage = 0;
                         }
-                        print!("Fought {} barehanded, ", self.room[room_idx-1].display());
+                        println!("Fought {} barehanded", self.room[room_idx-1].display());
                         self.health = cmp::max(self.health as i16 - rank as i16, 0) as u8;
                         print!("{}", TextType::Bad.stylize(format!("-{} HP\n", rank as u8).as_str()));
                     }
@@ -595,5 +595,10 @@ fn main() {
                 }
             }
         }
+
+        // wait
+        print!("...");
+        io::Write::flush(&mut io::stdout()).unwrap();
+        io::stdin().read_line(&mut input).unwrap();
     }
 }
