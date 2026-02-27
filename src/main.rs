@@ -111,6 +111,10 @@ impl Card {
         }
     }
 
+    fn get_price(&self) -> u32 {
+        self.get_value() - 2
+    }
+
     fn display(&self) -> ColoredString {
         let text = match self.card_type {
             CardType::Regular { suit, rank } => {
@@ -368,7 +372,7 @@ impl Game {
         // check if lost
         if self.health <= 0 {
             self.state = GameState::Lost;
-            println!("{}", TextType::Bad.stylize("You lost"));
+            println!("{}", TextType::Bad.stylize("You died"));
             return
         }
 
@@ -393,7 +397,7 @@ impl Game {
         match self.state {
             GameState::Floor => {
                 println!("{}", TextType::Dungeon.stylize("===== Dungeon ====="));
-                println!("{} card(s) left in Dungeon", self.dungeon.len());
+                println!("{}", TextType::Notification.stylize(&format!("{} card(s) left in Dungeon", self.dungeon.len())));
 
                 let health_text = format!("{}/12 HP", self.health);
                 let health_color = match self.health {
@@ -432,7 +436,7 @@ impl Game {
                 if !self.shop_stock.is_empty() {
                     for i in 0..cmp::min(self.shop_stock.len(), 4) {
                         let card = &self.shop_stock[i];
-                        println!("{}. {} - {}", i+1, card.display(), TextType::Money.stylize(format!("${}", card.get_value()).as_str()));
+                        println!("{}. {} - {}", i+1, card.display(), TextType::Money.stylize(format!("${}", card.get_price()).as_str()));
                     }
                 }
                 
@@ -472,7 +476,10 @@ impl Game {
 
                         let v = self.room[idx-1].get_value().div_ceil(2);
 
-                        println!("Destroyed {}, {}", self.room[idx-1].display(), TextType::Money.stylize(format!("+${}", v).as_str()));
+                        println!("Destroyed {} using {}, {}", 
+                        self.room[idx-1].display(), 
+                        self.room[room_idx-1].display(),
+                        TextType::Money.stylize(format!("+${}", v).as_str()));
                         self.money += v;
                         self.dungeon_discard.push(self.room.remove(idx-1));
                         if idx < room_idx {
@@ -490,7 +497,7 @@ impl Game {
                     let mut barehanded = false;
                     match &self.weapon {
                         Some(weapon) => {
-                            if self.weapon_durability > rank as u8 {
+                            if self.weapon_durability >= rank as u8 {
                                 println!("Fought {} using {}", 
                                     self.room[room_idx-1].display(), 
                                     weapon.display());
@@ -541,16 +548,16 @@ impl Game {
                     } else {
                         match &self.weapon {
                             Some(weapon) => {
-                                let repair = (rank as u8 - Rank::Ten as u8) * 2;
-                                let upgrade = rank as u8 - Rank::Ten as u8;
                                 if self.weapon_durability < u8::MAX {
-                                    self.weapon_durability += repair;
+                                    self.weapon_durability += (rank as u8 - Rank::Ten as u8) * 3;
                                 }
-                                self.weapon = Some(weapon.upgrade(upgrade));
-                                println!("{}", TextType::Good.stylize(format!("Repaired {} durability, upgraded weapon", repair).as_str()));
+                                self.weapon = Some(weapon.upgrade(rank as u8 - Rank::Ten as u8));
+                                println!("{} {}", 
+                                    TextType::Good.stylize(format!("Repaired and upgraded weapon using").as_str()),
+                                    self.room[room_idx-1].display());
                             },
                             None => {
-                                println!("{}", TextType::Bad.stylize("No weapon equiped!"))
+                                println!("{}", TextType::Bad.stylize("No weapon equiped, card wasted!"))
                             }
                         }
                         
@@ -588,9 +595,9 @@ impl Game {
         }
 
         let card = &self.shop_stock[shop_idx-1];
-        if self.money >= card.get_value() {
-            println!("{}, {} added to dungeon", TextType::Bad.stylize(format!("-${}", card.get_value()).as_str()), card.display());
-            self.money -= card.get_value();
+        if self.money >= card.get_price() {
+            println!("{}, {} added to dungeon", TextType::Bad.stylize(format!("-${}", card.get_price()).as_str()), card.display());
+            self.money -= card.get_price();
             self.dungeon.push(self.shop_stock.remove(shop_idx-1));
         } else {
             println!("{}", TextType::Bad.stylize("Can't afford card"));
