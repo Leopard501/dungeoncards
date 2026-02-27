@@ -13,6 +13,7 @@ enum TextType {
     Bad,
     Ok,
     Good,
+    VeryGood,
     Money,
     Hearts,
     Diamonds,
@@ -34,6 +35,7 @@ impl TextType {
             Self::Bad => text.red(),
             Self::Ok => text.yellow(),
             Self::Good => text.green(),
+            Self::VeryGood => text.blue(),
             Self::Money => text.truecolor(200, 150, 25),
             Self::Hearts => text.truecolor(200, 0, 0),
             Self::Diamonds => text.truecolor(200, 75, 25),
@@ -219,7 +221,7 @@ impl Game {
                                 Suit::Clubs | Suit::Spades => bosses.push(card),
                             }
                         },
-                        0_u8..=3_u8 | 14_u8..=u8::MAX => { }
+                        _ => { }
                     }
                 },
                 CardType::Joker { .. } => {
@@ -320,7 +322,8 @@ impl Game {
                 let health_color = match self.health {
                     0..=4 => TextType::Bad,
                     5..=8 => TextType::Ok,
-                    _ => TextType::Good,
+                    9..=12 => TextType::Good,
+                    _ => TextType::VeryGood,
                 };
                 let money_text = format!("${}", self.money);
                 println!("{}, {}", health_color.stylize(health_text.as_str()), TextType::Money.stylize(money_text.as_str()));
@@ -406,9 +409,10 @@ impl Game {
             }
             CardType::Regular { suit, rank } => match suit {
                 Suit::Clubs | Suit::Spades => {
-                    print!("Fought {} ", self.room[room_idx-1].display());
                     if self.weapon_damage > 0 && self.weapon_durability > rank as u8 {
-                        print!("using {}, ", TextType::Diamonds.stylize(format!("{}♦", self.weapon_damage).as_str()));
+                        print!("Fought {} using {}, ", 
+                            self.room[room_idx-1].display(), 
+                            TextType::Diamonds.stylize(format!("{}♦", self.weapon_damage).as_str()));
                         let d: i16 = rank as i16 - self.weapon_damage as i16;
                         if d < 0 {
                             self.money += d.abs() as u32;
@@ -419,7 +423,14 @@ impl Game {
                         }
                         self.weapon_durability = rank as u8;
                     } else {
-                        print!("barehanded, ");
+                        // durability too low
+                        if self.weapon_damage > 0 {
+                            println!("{} {}", 
+                                TextType::Diamonds.stylize(format!("{}♦", self.weapon_damage).as_str()),
+                                TextType::Bad.stylize("broke!"));
+                            self.weapon_damage = 0;
+                        }
+                        print!("Fought {} barehanded, ", self.room[room_idx-1].display());
                         self.health = cmp::max(self.health as i16 - rank as i16, 0) as u8;
                         print!("{}", TextType::Bad.stylize(format!("-{} HP\n", rank as u8).as_str()));
                     }
