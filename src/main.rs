@@ -213,7 +213,7 @@ impl Game {
                         4..=9 => {
                             dungeon.push(card);
                         },
-                        10..=13 => {
+                        11..=13 => {
                             match suit {
                                 Suit::Hearts | Suit::Diamonds => shop.push(card),
                                 Suit::Clubs | Suit::Spades => bosses.push(card),
