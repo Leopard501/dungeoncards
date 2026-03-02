@@ -256,6 +256,13 @@ impl PartialOrd for Card {
     }
 }
 
+const FLOOR_NAMES: [&str; 4] = [
+    "The Landing",
+    "The Crypt",
+    "The Pits",
+    "The Chamber",
+];
+
 struct Game {
     dungeon: Vec<Card>,
     dungeon_discard: Vec<Card>,
@@ -264,6 +271,7 @@ struct Game {
     shop: Vec<Card>,
     shop_stock: Vec<Card>,
     shop_discard: Vec<Card>,
+    floor: usize,
     health: u8,
     money: u32,
     weapon: Option<Card>,
@@ -319,6 +327,7 @@ impl Game {
             shop,
             shop_stock: vec![],
             shop_discard: vec![],
+            floor: 0,
             health: 12, 
             money: 5, 
             weapon: None,
@@ -380,11 +389,12 @@ impl Game {
         if self.dungeon.is_empty() && !self.room.iter().any(|card| 
             matches!(card.card_type, CardType::Regular { suit: Suit::Clubs | Suit::Spades, .. })) {
             
-            println!("{}", TextType::Good.stylize("Floor complete!"));
+            println!("{}", TextType::Good.stylize(&format!("{} completed!", FLOOR_NAMES[self.floor])));
 
             if self.bosses.is_empty() {
                 self.state = GameState::Won;
             } else {
+                self.floor += 1;
                 self.state = GameState::Shop;
                 for _i in 0..cmp::min(self.shop.len(), 4) {
                     self.shop_stock.push(self.shop.remove(0));
@@ -396,7 +406,7 @@ impl Game {
     fn display(&self) {
         match self.state {
             GameState::Floor => {
-                println!("{}", TextType::Dungeon.stylize("===== Dungeon ====="));
+                println!("{}", TextType::Dungeon.stylize(&format!("===== {} =====", FLOOR_NAMES[self.floor])));
                 println!("{}", TextType::Notification.stylize(&format!("{} card(s) left in Dungeon", self.dungeon.len())));
 
                 let health_text = format!("{}/12 HP", self.health);
@@ -639,11 +649,12 @@ fn main() {
                     ["flee"] => game.flee(),
                     ["quit"] => break,
                     ["win"] => { // debug
-                        println!("{}", TextType::Good.stylize("Floor complete!"));
+                        println!("{}", TextType::Good.stylize(&format!("{} complete!", FLOOR_NAMES[game.floor])));
 
                         if game.bosses.is_empty() {
                             game.state = GameState::Won;
                         } else {
+                            game.floor += 1;
                             game.state = GameState::Shop;
                             for _i in 0..cmp::max(game.shop.len(), 4) {
                                 game.shop_stock.push(game.shop.remove(0));
